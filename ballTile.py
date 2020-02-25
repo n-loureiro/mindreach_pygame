@@ -23,7 +23,6 @@ class BallTile(pygame.sprite.Sprite):
 
     ###Draws dashed lines across for thresholds and baseline
     def drawDashedLine(self, left, top, length, width, ink, blank, color, dot):
-        print(top)
         wrect = pygame.Rect(left, top, ink, width)
         for i in range(int(length / blank)):
             pygame.draw.rect(self.image, color, wrect)
