@@ -68,11 +68,10 @@ def main():
 
     screen = pygame.display.set_mode((1200, 800),HWSURFACE|DOUBLEBUF|RESIZABLE)
     ball_obj = BallTile(screen, size_x=screen_size_x, size_y= screen_size_y)
-    #map_obj = MapTile(screen, size_x=screen_size_x, size_y= screen_size_y)
+    map_obj = MapTile(screen, size_x=screen_size_x, size_y= screen_size_y)
     hdg_obj = HdgTile(screen, size_x=screen_size_x, size_y= screen_size_y)
 
-    games = pygame.sprite.Group(ball_obj, hdg_obj)
-    #games = pygame.sprite.Group(ball_obj, hdg_obj, map_obj)
+    games = pygame.sprite.Group(ball_obj, hdg_obj, map_obj)
 
     while mainloop:
 
@@ -82,8 +81,11 @@ def main():
             if event.type == pygame.QUIT:
                 return
             if event.type == pygame.MOUSEBUTTONDOWN:  # or MOUSEBUTTONDOWN depending on what you want.
+                
                 now = pygame.time.get_ticks()
-                if now - last_click <= double_click_duration:
+                if event.button == 2:
+                    map_obj.clear_waypoints()
+                elif now - last_click <= double_click_duration:
                     map_obj.clear_waypoints()
                 else:
                     print(event.pos)
@@ -94,29 +96,29 @@ def main():
                     print('button click ESC!!!!')
                     mainloop = False
                 elif event.key == pygame.K_UP:
-                    tilt += 45
+                    tilt += 2.5
                     hdg_obj.rot_center(tilt)
                 elif event.key == pygame.K_DOWN:
-                    tilt -= 45
+                    tilt -= 2.5
                     hdg_obj.rot_center(tilt)
             elif event.type==VIDEORESIZE:
                 print('here')
                 screen=pygame.display.set_mode(event.dict['size'],HWSURFACE|DOUBLEBUF|RESIZABLE)
                 screen_size_x, screen_size_y = screen.get_size()
-                #ball_obj = BallTile(screen, size_x=screen_size_x, size_y= screen_size_y)
-                #map_obj = MapTile(screen, size_x=screen_size_x, size_y= screen_size_y)
+                ball_obj = BallTile(screen, size_x=screen_size_x, size_y= screen_size_y)
+                map_obj = MapTile(screen, size_x=screen_size_x, size_y= screen_size_y)
                 hdg_obj = HdgTile(screen, size_x=screen_size_x, size_y= screen_size_y)
                 games = pygame.sprite.Group(ball_obj, hdg_obj, map_obj)
         clock = pygame.time.Clock()
 
         
-        #ball_obj.drawBallHistory([0,10,20,30,40,50,60], [20+20,10+20,20+20,10+20,20+20,30+20,20*np.random.rand()+20])
-        #ball_obj.drawThresholdLines()
+        ball_obj.drawBallHistory([0,10,20,30,40,50,60], [20+20,10+20,20+20,10+20,20+20,30+20,20*np.random.rand()+20])
+        ball_obj.drawThresholdLines()
 
-        hdg_obj.drawTerrain(tilt)    
+        #hdg_obj.drawTerrain(tilt)    
 
         games.update()        
-        #games.draw(screen)
+        games.draw(screen)
         pygame.display.flip()
         clock.tick(8)
 
