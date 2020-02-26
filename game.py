@@ -92,15 +92,36 @@ def main():
                     map_obj.set_new_waypoint(event.pos)
                 last_click = pygame.time.get_ticks()
             elif event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_ESCAPE:
-                    print('button click ESC!!!!')
-                    mainloop = False
+                if event.key == pygame.K_w:
+                    map_obj.speed += 1
+                elif event.key == pygame.K_s:
+                    map_obj.speed -= 1
+                elif event.key == pygame.K_a:
+                    map_obj.angle_speed = -20
+                    tilt = -27
+                    hdg_obj.rot_center(tilt)
+                elif event.key == pygame.K_d:
+                    map_obj.angle_speed = 20
+                    tilt = 27
+                    hdg_obj.rot_center(tilt)
                 elif event.key == pygame.K_UP:
                     tilt += 2.5
                     hdg_obj.rot_center(tilt)
                 elif event.key == pygame.K_DOWN:
                     tilt -= 2.5
                     hdg_obj.rot_center(tilt)
+                elif event.key == pygame.K_ESCAPE:
+                    print('button click ESC!!!!')
+                    mainloop = False
+            elif event.type == pygame.KEYUP:
+                if event.key == pygame.K_a:
+                    map_obj.angle_speed = 0
+                    tilt = 0
+                    hdg_obj.rot_center(tilt)
+                elif event.key == pygame.K_d:
+                    map_obj.angle_speed = 0 
+                    tilt = 0
+                    hdg_obj.rot_center(tilt)           
             elif event.type==VIDEORESIZE:
                 print('here')
                 screen=pygame.display.set_mode(event.dict['size'],HWSURFACE|DOUBLEBUF|RESIZABLE)
@@ -120,7 +141,7 @@ def main():
         games.update()        
         games.draw(screen)
         pygame.display.flip()
-        clock.tick(8)
+        clock.tick(60)
 
 
 if __name__ == '__main__':

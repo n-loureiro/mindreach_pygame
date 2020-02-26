@@ -108,7 +108,6 @@ class HdgTile(pygame.sprite.Sprite):
     def rot_center(self, angle):
 
         old_center = self.rect_hdg_rot.center
-        print(angle)
         self.rotated_image = pygame.transform.rotozoom(self.hdg_rot, angle,1)
         #self.image = rotated_image
         #self.image.set_colorkey((17, 218, 255))
