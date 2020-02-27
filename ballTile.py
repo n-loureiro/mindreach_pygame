@@ -1,25 +1,55 @@
 import pygame 
+import numpy as np
 
 
 class BallTile(pygame.sprite.Sprite):
-    def __init__(self, canvas, size_x, size_y):
+    def __init__(self, pos_in_screen, tile_size):
         super().__init__()
-        self.tile_size_x = size_x/2
-        self.tile_size_y = size_y*0.4
+
+        pos_in_screen_x = pos_in_screen[0]
+        pos_in_screen_y = pos_in_screen[1]
+        self.tile_size_x = tile_size[0]
+        self.tile_size_y = tile_size[1]
 
         self.image = pygame.Surface((self.tile_size_x, self.tile_size_y))
         self.image.fill((200, 200, 200))
-        self.rect = self.image.get_rect(left= 0, top=size_y*0.6)
-        self.canvas = canvas
-        #self.canvas.blit(self.image, (size_x/2,size_y*0.6))
+        self.rect = self.image.get_rect()
+        self.rect.center = ((pos_in_screen_x)+self.tile_size_x/2, 
+                            (pos_in_screen_y)+self.tile_size_y/2)
+
+        self.pos_hist_x = [0,10,20,30,
+                          40,50,60,70] #in prct of tile_size_x
+
+        self.pos_hist_y = [self.tile_size_y/2]*8
+
+        self.upRange = 1
+        self.downRange = -1
+        self.upReward = 0.75
+        self.downReward = -0.75
+        self.upBase = 0.25
+        self.downBase = -0.25
 
     ###Draw Ball and last 5 positions as history
-    def drawBallHistory(self, posx, posy):
+    def drawBallHistory(self, new_pos):
         self.image.fill((200, 200, 200))
+
+        self.pos_hist_y = np.roll(self.pos_hist_y,-1)
+        self.pos_hist_y[-1] = self.eeg2pixels(new_pos)
+
         #Draw history and ball
-        for i in range(6): 
-            pygame.draw.line(self.image, (0,0,255), [self.tile_size_x*posx[i]/100, self.tile_size_y*posy[i]/100], [self.tile_size_x*posx[i+1]/100, self.tile_size_y*posy[i+1]/100], 3)
-        pygame.draw.circle(self.image, (255,0,0), (int(self.tile_size_x*posx[6]/100), int(self.tile_size_y*posy[6]/100)), 20)
+        for i in range(len(self.pos_hist_x)-1): 
+
+            #convert value of position to pixel in y axis
+            pygame.draw.line(self.image, (0,0,255), 
+                [self.tile_size_x*self.pos_hist_x[i]/100, self.pos_hist_y[i]], 
+                [self.tile_size_x*self.pos_hist_x[i+1]/100, self.pos_hist_y[i+1]], 
+                3)
+        pygame.draw.circle(self.image, (255,0,0), 
+                (int(self.tile_size_x*self.pos_hist_x[-1]/100), int(self.pos_hist_y[-1])), 20)
+
+
+    def eeg2pixels(self,pos_y):
+        return self.tile_size_y/2 - (pos_y * self.tile_size_y ) / (self.upRange - self.downRange)
 
     ###Draws dashed lines across for thresholds and baseline
     def drawDashedLine(self, left, top, length, width, ink, blank, color, dot):
@@ -53,10 +83,10 @@ class BallTile(pygame.sprite.Sprite):
 
     ###Draw Threshold Lines
     def drawThresholdLines(self):
-        self.drawDashedLine(0, self.tile_size_y*0.1, self.tile_size_x+20,4,20,28, (92, 92, 92),False)
-        self.drawDashedLine(0, self.tile_size_y*0.9, self.tile_size_x+20,4,20,28, (92, 92, 92),False)
-        self.drawDashedLine(0, self.tile_size_y*0.3, self.tile_size_x+20,2,20,40, (120,120,130),True)
-        self.drawDashedLine(0, self.tile_size_y*0.6, self.tile_size_x+20,2,20,40, (120,120,130),True)
+        self.drawDashedLine(0, self.eeg2pixels(self.downReward), self.tile_size_x+20,4,20,28, (92, 92, 92),False)
+        self.drawDashedLine(0, self.eeg2pixels(self.upReward), self.tile_size_x+20,4,20,28, (92, 92, 92),False)
+        self.drawDashedLine(0, self.eeg2pixels(self.upBase), self.tile_size_x+20,2,20,40, (120,120,130),True)
+        self.drawDashedLine(0, self.eeg2pixels(self.downBase), self.tile_size_x+20,2,20,40, (120,120,130),True)
 
 
     def chooseArrow():
@@ -68,29 +98,3 @@ class BallTile(pygame.sprite.Sprite):
             a[i+1]=random.choice(['2','22','222'])
             i+=2
         arrowList = "".join(a)
-
-# #background image
-# #background_grey= pygame.image.load(codePath+"/python/saturn.jpg").convert()
-# background_grey= pygame.image.load("/Users/nunoloureiro/mindreach/software_eeg/cursor_control/codeDir/python/background.png").convert()
-
-
-# #Graphic Values:
-# TriangleBase = 50
-# TriangleHeight = 60
-
-# #divide resx position into 12 intervals
-# posx = [x*resx/10 for x in range(0,11)]
-# posx = [int(i) for i in posx] #get their int because draw.circle function only accepts int
-
-
-# #posy will be read from TiD but initially it is in the center resy/2
-# posy = [resy/2 for x in range(0,7)]
-
-# #Define colours
-# BLACK = (  0,   0,   0)
-# WHITE = (255, 255, 255)
-# BLUE =  (  0,   0, 255)
-# GREEN = (  0, 255,   0)
-# RED =   (255,   0,   0)
-# dGREY = (92, 92, 92)
-# lGREY = (120,120,130)
