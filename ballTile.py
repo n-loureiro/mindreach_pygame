@@ -3,7 +3,7 @@ import numpy as np
 
 
 class BallTile(pygame.sprite.Sprite):
-    def __init__(self, pos_in_screen, tile_size):
+    def __init__(self, pos_in_screen, tile_size, thresholds_norm):
         super().__init__()
 
         pos_in_screen_x = pos_in_screen[0]
@@ -22,12 +22,12 @@ class BallTile(pygame.sprite.Sprite):
 
         self.pos_hist_y = [self.tile_size_y/2]*8
 
-        self.upRange = 1
-        self.downRange = -1
-        self.upReward = 0.75
-        self.downReward = -0.75
-        self.upBase = 0.25
-        self.downBase = -0.25
+        self.upRange = thresholds_norm['upRange']
+        self.downRange = thresholds_norm['downRange']
+        self.upReward = thresholds_norm['upReward']
+        self.downReward = thresholds_norm['downReward']
+        self.upBase = thresholds_norm['upBase']
+        self.downBase = thresholds_norm['downBase']
 
     ###Draw Ball and last 5 positions as history
     def drawBallHistory(self, new_pos):

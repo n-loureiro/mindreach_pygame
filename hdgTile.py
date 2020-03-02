@@ -24,7 +24,7 @@ class HdgTile(pygame.sprite.Sprite):
        
         HDG_size = self.rect_hdg_rot.size
 
-        self.BG_IMAGE = pygame.image.load("hdg_bg.png").convert()
+        self.BG_IMAGE = pygame.image.load("images/hdg_bg.png").convert_alpha()
         BG_size = self.BG_IMAGE.get_rect().size
 
         self.BG_IMAGE = self.BG_IMAGE.subsurface((abs(HDG_size[0]/2-BG_size[0]/2),abs(HDG_size[1]/2-BG_size[1]/2),HDG_size[0],HDG_size[1]))
@@ -49,7 +49,7 @@ class HdgTile(pygame.sprite.Sprite):
     def rot_center(self, angle):
 
         old_center = self.rect_hdg_rot.center
-        self.rotated_image = pygame.transform.rotozoom(self.hdg_rot, angle,1)
+        self.rotated_image = pygame.transform.rotate(self.hdg_rot, angle)
 
         self.rect_hdg_rot = self.rotated_image.get_rect()
         self.rect_hdg_rot.center = old_center
