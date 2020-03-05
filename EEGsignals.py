@@ -1,7 +1,3 @@
-##############################################################
-# Use python 2.7
-##############################################################
-
 import sys
 from pyqtgraph.Qt import QtGui, QtCore
 import pyqtgraph as pg
@@ -13,47 +9,11 @@ from scipy import signal
 
 import struct
 import serial
-
-# self.PROGRAM_VER = 4.0
-
-# s = struct.Struct('f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f')
-# s2 = struct.Struct('f')
-
-# sAccel = struct.Struct('f f f')
-
-# dataBuffer1 = 0
-# dataBuffer2 = 0
-
-# #dataBufferChannel1 = 0
-# #dataBufferChannel2 = 0
-# #dataBufferChannel3 = 0
-# #dataBufferChannel4 = 0
-# #dataBufferChannel5 = 0
-
-# accelBufferX = 0
-# accelBufferY = 0
-# accelBufferZ = 0
-
-# writeVal = 1
-# serialEnabled = False
-
-# DOWNSAMPLE_WIND = 1
-# self.FFT_WINDOW = 5000
-# SPECT_WINDOW = 5000
-# spectBin = 500
-# SAMPLES = 5000
-# FS = 500
-
-
-# BGCOLOR = pg.mkColor(220,220,220)
-# FGCOLOR = pg.mkColor(100,100,100)
-# plotcolor = QtGui.QColor(76,100,230)
-# PLTWIDTH = 2
-
-
-
-
 import numpy
+
+import os
+import re
+import pickle
 
 def smooth(x,window_len=11,window='hanning'):
 
@@ -85,88 +45,90 @@ def smooth(x,window_len=11,window='hanning'):
 class serialReceiver(QtCore.QThread):
   
   
-  newSample = QtCore.pyqtSignal(int,int, tuple, tuple)
+  newSample = QtCore.pyqtSignal(int,int, tuple, tuple, tuple)
   serialConn = QtCore.pyqtSignal(bool)
   
   def __init__(self, baud, port, serialEnabled, dataBuffer1, dataBuffer2, writeVal,
-              accelBufferX, accelBufferY, accelBufferZ):
+              accelBufferX):
     QtCore.QThread.__init__(self)
     self.serialEnabled = serialEnabled
     self.dataBuffer1 = dataBuffer1
     self.dataBuffer2 = dataBuffer2
     self.writeVal = writeVal
     self.accelBufferX = accelBufferX
-    self.accelBufferY = accelBufferY
-    self.accelBufferZ = accelBufferZ
 
-
+    self.loopRun = 1 #variable to stop the loop when entering the game looprun = 0
 
     self.ser = serial.Serial()
 
     self.ser.baudrate = baud
     self.ser.port = port
     self.ser.open()
-    #self.ser.write("wb")
     self.ser.write(str.encode("wb"))
+    self.a=0
     
   def run(self):
 
     s = struct.Struct('f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f')
     s2 = struct.Struct('f')
-
+    
     sAccel = struct.Struct('f f f')
-
-    while True:
-      data = self.ser.read(1)
-      #if(data == 255):
-      if(ord(data) == 255):
-        data = self.ser.read(3)
-        #if(data[0] == 255 and data[1] == 0):
-        if(data[0] == 255 and data[1] == 0):
-          #channel = data[2]
-          channel = data[2]
-          if(channel == 6):
-            print("")
-            data = self.ser.read(4)
-            log = s2.unpack(data)
-            print("log:"+str(log))
-            print("")
-          elif(channel == 7):
-            data = self.ser.read(12)
-            self.accelBufferX = sAccel.unpack(data)
-            self.newSample.emit(7,7, self.dataBuffer1, self.dataBuffer2)
-          elif(channel > 0) and (channel < 6):
-            data = self.ser.read(500)
-            if(self.writeVal == 1):
-              self.dataBuffer1 = s.unpack(data)
-              self.writeVal = 2
-            else:
-              self.dataBuffer2 = s.unpack(data)
-              self.writeVal = 1
-            #unpacked_data = s.unpack(data)
-            chanCounter = channel
-            self.newSample.emit(channel,self.writeVal, self.dataBuffer1, self.dataBuffer2)
+    
+    while 1:
+      if self.loopRun:
+        data = self.ser.read(1)
+        #if(data == 255):
+        if(ord(data) == 255):
+          data = self.ser.read(3)
+          #if(data[0] == 255 and data[1] == 0):
+          if(data[0] == 255 and data[1] == 0):
+            #channel = data[2]
+            channel = data[2]
+            if(channel == 6):
+              #self.loopRun = 0
+              print("")
+              data = self.ser.read(4)
+              log = s2.unpack(data)
+              print("log:"+str(log))
+              print("")
+            elif(channel == 7):
+              data = self.ser.read(12)
+              self.accelBufferX = sAccel.unpack(data)
+              self.newSample.emit(7,7, self.dataBuffer1, self.dataBuffer2, self.accelBufferX)
+            elif(channel > 0) and (channel < 6):
+              data = self.ser.read(500)
+              if(self.writeVal == 1):
+                self.dataBuffer1 = s.unpack(data)
+                self.writeVal = 2
+              else:
+                self.dataBuffer2 = s.unpack(data)
+                self.writeVal = 1
+              chanCounter = channel
+              self.newSample.emit(channel, self.writeVal, self.dataBuffer1, self.dataBuffer2, self.accelBufferX)
+          else:
+            self.ser.flush()
+        elif(data[0] == 5):
+        #elif(data[0] == 5):
+          if not self.serialEnabled : 
+            self.serialConn.emit(self.serialEnabled)
+          self.enabled = 1
+          print("Raw signals enabled!")
+          
         else:
           self.ser.flush()
-      elif(data[0] == 5):
-      #elif(data[0] == 5):
-        if not self.serialEnabled : 
-          self.serialConn.emit(self.serialEnabled)
-        self.enabled = 1
-        print("Raw signals enabled!")
-        
       else:
-        self.ser.flush()
-
-
-          
+        self.a +=1
+        print(self.a)
+       
   def setRawAcquisition(self):
-    #self.ser.write("wb")
+    self.loopRun = 1
     self.ser.write(str.encode("wb"))
+
     
   def setDecoderAcquisition(self):
-    #self.ser.write("wa")
+    self.loopRun = 1
     self.ser.write(str.encode("wa"))
+
 
 class tabdemo(QtGui.QTabWidget):
   
@@ -174,20 +136,11 @@ class tabdemo(QtGui.QTabWidget):
 
     self.PROGRAM_VER = 4.0
 
-
+    self.after_exit = 0
 
     self.dataBuffer1 = (0,0)
     self.dataBuffer2 = (0,0)
-
-    #dataBufferChannel1 = 0
-    #dataBufferChannel2 = 0
-    #dataBufferChannel3 = 0
-    #dataBufferChannel4 = 0
-    #dataBufferChannel5 = 0
-
-    self.accelBufferX = 0
-    self.accelBufferY = 0
-    self.accelBufferZ = 0
+    self.accelBufferX = (0,0)
 
     self.writeVal = 1
     self.serialEnabled = False
@@ -205,16 +158,7 @@ class tabdemo(QtGui.QTabWidget):
     self.plotcolor = QtGui.QColor(76,100,230)
     self.PLTWIDTH = 2
 
-
-
-
-
     super(tabdemo, self).__init__(parent)
-    #self.tabEEG = QtGui.QWidget()
-    #self.tabSpect = QtGui.QWidget()
-    #self.tabGame = QtGui.QWidget()
-    #self.tabConnect = QtGui.QWidget()	#connect
-    #self.tabAccel = QtGui.QWidget() #accel
     
     self.activeTab = 1
     self.activeChannel = 1
@@ -241,10 +185,20 @@ class tabdemo(QtGui.QTabWidget):
     self.serialBaud = 115200
     self.serialPort = str('/dev/tty.mindreachBTv4-Bluetooth')
 
+    self.username = "nuno"
+    self.usernameGame = "nuno"
+
+
     self.disableYAutorange = False
     self.yLimitSpinbox_value = 00100.0 #uV 
     self.yLimit_value = self.yLimitSpinbox_value / 1000000
  
+
+    self.stdMultiplier_value = 2.5
+    self.stdMultiplierBase_value = 1.0
+    self.stateThresholds = 0 
+    self.active_file = 0
+    self.realthresholds = {}
     
     # -------------------------------
     # RAW DATA GRAPHS
@@ -302,23 +256,18 @@ class tabdemo(QtGui.QTabWidget):
     self.graph1.setLabel('left', "Amplitude", "V")
     self.graph1.setLabel('bottom', "Number of points")
     self.graph1.setTitle("Channel 1")
-    #self.graph1.setYRange(0,200,padding=0)
     self.graph2.setLabel('left', "Amplitude", "V")
     self.graph2.setLabel('bottom', "Number of points")
     self.graph2.setTitle("Channel 2")
-    #self.graph2.setYRange(0,200,padding=0)
     self.graph3.setLabel('left', "Amplitude", "V")
     self.graph3.setLabel('bottom', "Number of points")
     self.graph3.setTitle("Channel 3")
-    #self.graph3.setYRange(0,200,padding=0)
     self.graph4.setLabel('left', "Amplitude", "V")
     self.graph4.setLabel('bottom', "Number of points")
     self.graph4.setTitle("Channel 4")
-    #self.graph4.setYRange(0,200,padding=0)
     self.graph5.setLabel('left', "Amplitude", "V")
     self.graph5.setLabel('bottom', "Number of points")
     self.graph5.setTitle("Channel 5")
-    #self.graph5.setYRange(0,200,padding=0)
 
     self.graphAccel_x.setLabel('left', "Acceleration", "ms^-2")
     self.graphAccel_x.setLabel('bottom', "Number of points")
@@ -337,19 +286,7 @@ class tabdemo(QtGui.QTabWidget):
     self.graph3.setMouseEnabled(x=False, y=True)
     self.graph4.setMouseEnabled(x=False, y=True)
     self.graph5.setMouseEnabled(x=False, y=True)
-    
-    #self.graph1.setYLink(self.graph2)
-    #self.graph2.setYLink(self.graph1)
-    
-    #self.graph2.setYLink(self.graph3)
-    #self.graph3.setYLink(self.graph2)
-    
-    #self.graph3.setYLink(self.graph4)
-    #self.graph4.setYLink(self.graph5)
-    
-    #self.graph4.setYLink(self.graph5)
-    #self.graph5.setYLink(self.graph1)
-    
+
     # -------------------------------
     # SPECTROGRAM GRAPHS
     # -------------------------------
@@ -371,50 +308,86 @@ class tabdemo(QtGui.QTabWidget):
     bx.setScale(0.1)
     
     self.spectrogramImage = pg.PlotWidget()
-    #self.fftData = pg.PlotCurveItem()
-    #self.fft.addItem(self.fftData)
-    #self.spectogram.setLabel('left', "Amplitude", "V")
-    #self.spectogram.setLabel('bottom', "Number of points")
     self.spectrogram = pg.ImageItem()
     self.spectrogramImage.addItem(self.spectrogram)
     self.spectrogramImage.setLabel('left', 'Frequency', units='Hz')
     self.spectrogramImage.setLabel('bottom', 'Time', units='s')
     
-    
     self.tabConnect = QtGui.QWidget()	#connect
     self.tabEEG = QtGui.QWidget()
     self.tabSpect = QtGui.QWidget()
     self.tabGame = QtGui.QWidget()
+    self.tabDist = QtGui.QWidget()
     self.tabAccel = QtGui.QWidget() #accel
     self.connectTabIndex = self.addTab(self.tabConnect,"Connect") + 1
     self.eegTabIndex = self.addTab(self.tabEEG,"EEG Data") + 1
     self.spectTabIndex = self.addTab(self.tabSpect,"Spectogram") + 1 
     self.accelTabIndex = self.addTab(self.tabAccel,"Accel Data") + 1
+    self.distTabIndex = self.addTab(self.tabDist,"Distributions") + 1
     self.gameTabIndex = self.addTab(self.tabGame,"Game") + 1
     print("connectIndex",self.connectTabIndex)
     print("eegIndex",self.eegTabIndex)
+
+
+    # -------------------------------
+    # Distribution GRAPHS
+    # -------------------------------
+
+    self.positionFileMenu = QtGui.QComboBox()
+    
+    self.dist_pg = pg.PlotWidget()
+    self.plot_pg = pg.PlotWidget()
+
+    # vals = np.hstack([np.random.normal(size=500), np.random.normal(size=260, loc=4)])
+    # y,x = np.histogram(vals, bins=np.linspace(-3, 8, 40))
+    # self.dist = self.dist_pg.plot(x,y,stepMode=True, fillLevel=0, brush=(0,0,255,150))
+    #self.plot = self.plot_pg.plot(vals)
+
+    # mean_pos = np.mean(x)
+    # std_pos = np.std(x)
+    # vert_line = pg.InfiniteLine(mean_pos, angle = 90)
+    # self.dist_pg.addItem(vert_line)
+
+    #self.dist.addItem(self.distData)
+
+    self.plot_pg.setLabel('left', "Counts", "")
+    self.plot_pg.setLabel('bottom', "time(s)")
+    self.dist_pg.setLabel('bottom', "Position")
+
+
+    self.showThresholdsCheckbox = QtGui.QCheckBox("Show current thresholds",self)
+    self.showThresholdsCheckbox.stateChanged.connect(self.toggleShowThresholds)
+
+
+    self.stdMultiplierSpinbox = QtGui.QDoubleSpinBox()
+    self.stdMultiplierSpinbox.setAlignment(QtCore.Qt.AlignRight)
+    self.stdMultiplierSpinbox.setMinimumSize(90,20)
+    self.stdMultiplierSpinbox.setMaximumSize(90,20)
+    self.stdMultiplierSpinbox.setValue(self.stdMultiplier_value)
+    self.stdMultiplierSpinbox.setSingleStep(0.1)
+
+    self.stdMultiplierBaseSpinbox = QtGui.QDoubleSpinBox()
+    self.stdMultiplierBaseSpinbox.setAlignment(QtCore.Qt.AlignRight)
+    self.stdMultiplierBaseSpinbox.setMinimumSize(90,20)
+    self.stdMultiplierBaseSpinbox.setMaximumSize(90,20)
+    self.stdMultiplierBaseSpinbox.setValue(self.stdMultiplierBase_value)
+    self.stdMultiplierBaseSpinbox.setSingleStep(0.1)
 
     
     self.connectTabUI()
     self.graphTabUI()
     self.spectTabUI()
+    self.distTabUI()
     self.gameTabUI()
     self.accelTabUI()
     self.connectTabs()
     
-    #self.setCurrentIndex(self.gameTabIndex -1)
-    
-    #serial = serialReceiver(1, 1)
-    #serial.newSample.connect(self.updateGraphs)
-    #self.thread = serial
-    #serial.start()
     self.setWindowTitle("VisionVolt - Mindreach EEG Headset GUI, version: " + str(self.PROGRAM_VER))
   
   def setAutoRange(self,graph, enable):
     axY = graph.getAxis('left')
     if(enable == True):
       graph.enableAutoRange(axY,True,None, 'y')
-      #graph.updateAutoRange()
     else:
       graph.enableAutoRange(axY,False,None, 'y')
   
@@ -432,6 +405,16 @@ class tabdemo(QtGui.QTabWidget):
       self.setGraphRange(self.graph3, 0-self.yLimit_value, self.yLimit_value)
       self.setGraphRange(self.graph4, 0-self.yLimit_value, self.yLimit_value)
       self.setGraphRange(self.graph5, 0-self.yLimit_value, self.yLimit_value)
+
+  def changeStdMultiplier(self):
+    self.stdMultiplier_value = self.stdMultiplierSpinbox.value()
+    self.changedPositionFile()
+    self.showThresholds()
+
+  def changeStdBaseMultiplier(self):
+    self.stdMultiplierBase_value = self.stdMultiplierBaseSpinbox.value()
+    self.changedPositionFile()
+    self.showThresholds()
 
   def checklimit(self, state):
     if state == QtCore.Qt.Checked:
@@ -456,14 +439,123 @@ class tabdemo(QtGui.QTabWidget):
       self.setAutoRange(self.graph4,True)
       self.setAutoRange(self.graph5,True)
 
-
-
   def changeDDMenu(self):
     self.activeChannel = self.ddMenu.currentIndex() + 1
     self.counter = 0
     self.channeldata = [0]*5000
     self.fftsamples = [0]*self.FFT_WINDOW
     self.fftData.setData(self.channeldata)
+
+  def toggleShowThresholds(self, state):
+    if state == QtCore.Qt.Checked:
+      self.stateThresholds = 1
+      self.showThresholds()
+      
+    elif state != QtCore.Qt.Checked:
+      self.stateThresholds = 0
+      try:
+        self.dist_pg.removeItem(self.mean_vert_current)
+        self.dist_pg.removeItem(self.target_up_current)
+        self.dist_pg.removeItem(self.target_down_current)
+        self.dist_pg.removeItem(self.base_up_current)
+        self.dist_pg.removeItem(self.base_down_current)
+      except:
+        pass
+
+
+  def showThresholds(self):
+    try:
+      self.dist_pg.removeItem(self.mean_vert_current)
+      self.dist_pg.removeItem(self.target_up_current)
+      self.dist_pg.removeItem(self.target_down_current)
+      self.dist_pg.removeItem(self.base_up_current)
+      self.dist_pg.removeItem(self.base_down_current)
+    except:
+      pass
+
+    if self.stateThresholds:
+      g = open( self.pathUser +'thresholds.txt', 'r')
+      thresholds_curr = eval(g.read())
+      g.close()
+
+      mean_curr = (thresholds_curr['upReward'] + thresholds_curr['downReward'])/2
+
+      self.mean_vert_current = pg.InfiniteLine(mean_curr, angle = 90,
+                                  pen = pg.mkPen(color=(10, 200, 0), width=1, style=QtCore.Qt.DotLine))
+      self.target_up_current = pg.InfiniteLine(thresholds_curr['upReward'], angle = 90,
+                                  pen = pg.mkPen(color=(10, 200, 0), width=2, style=QtCore.Qt.SolidLine))
+      self.target_down_current = pg.InfiniteLine(thresholds_curr['downReward'], angle = 90,
+                                  pen = pg.mkPen(color=(10, 200, 0), width=2, style=QtCore.Qt.SolidLine))
+      self.base_up_current = pg.InfiniteLine(thresholds_curr['upBase'], angle = 90,
+                                  pen = pg.mkPen(color=(10, 200, 0), width=2, style=QtCore.Qt.DashLine))
+      self.base_down_current = pg.InfiniteLine(thresholds_curr['downBase'], angle = 90,
+                                  pen = pg.mkPen(color=(10, 200, 0), width=2, style=QtCore.Qt.DashLine))
+
+
+      self.dist_pg.addItem(self.mean_vert_current)
+      self.dist_pg.addItem(self.target_up_current)
+      self.dist_pg.addItem(self.target_down_current)
+      self.dist_pg.addItem(self.base_up_current)
+      self.dist_pg.addItem(self.base_down_current)
+      
+
+  def changedPositionFile(self):
+    self.activeFile = self.positionFileMenu.currentIndex() + 1
+    try:
+      self.active_file = self.all_pos_files[self.activeFile-1]
+    except:
+      self.active_file = "No files to show"
+      print('no file to show')
+    if self.active_file != "No files to show":
+      try:
+        with open(self.pathUser + self.active_file, 'rb') as filehandle:
+            # read the data as binary data stream
+            position_array = pickle.load(filehandle)
+        y,x = np.histogram(position_array, bins=int(len(position_array)/10))
+        self.dist_pg.clear()
+        self.dist_pg.plot(x,y,stepMode=True, fillLevel=0, brush=(0,0,255,150))
+
+        mean_pos = np.mean(x)
+        std_pos = np.std(x)
+
+        mean_vert = pg.InfiniteLine(mean_pos, angle = 90,
+                                    pen = pg.mkPen(color=(200, 0, 0), width=1, style=QtCore.Qt.DotLine))
+        
+        self.target_up = mean_pos+self.stdMultiplier_value*std_pos
+        self.target_down = mean_pos-self.stdMultiplier_value*std_pos
+        self.base_up = mean_pos+(self.stdMultiplierBase_value)*std_pos
+        self.base_down = mean_pos-(self.stdMultiplierBase_value)*std_pos
+        self.range_up = mean_pos-(self.stdMultiplier_value+0.3)*std_pos
+        self.range_down = mean_pos+(self.stdMultiplier_value+0.3)*std_pos
+
+        self.realthresholds['upReward'] = self.target_up
+        self.realthresholds['downReward'] = self.target_down
+        self.realthresholds['upBase'] = self.base_up
+        self.realthresholds['downBase'] = self.base_down
+        self.realthresholds['upRange'] = self.range_up
+        self.realthresholds['downRange'] = self.range_down
+
+        mean_vert = pg.InfiniteLine(mean_pos, angle = 90,
+                                    pen = pg.mkPen(color=(200, 0, 0), width=1, style=QtCore.Qt.DotLine))
+        target_up = pg.InfiniteLine(self.target_up, angle = 90,
+                                    pen = pg.mkPen(color=(200, 0, 0), width=2, style=QtCore.Qt.SolidLine))
+        target_down = pg.InfiniteLine(self.target_down, angle = 90,
+                                    pen = pg.mkPen(color=(200, 0, 0), width=2, style=QtCore.Qt.SolidLine))
+        base_up = pg.InfiniteLine(self.base_up, angle = 90,
+                                    pen = pg.mkPen(color=(200, 0, 0), width=2, style=QtCore.Qt.DashLine))
+        base_down = pg.InfiniteLine(self.base_down, angle = 90,
+                                    pen = pg.mkPen(color=(200, 0, 0), width=2, style=QtCore.Qt.DashLine))
+        self.dist_pg.addItem(mean_vert)
+        self.dist_pg.addItem(target_up)
+        self.dist_pg.addItem(target_down)
+        self.dist_pg.addItem(base_up)
+        self.dist_pg.addItem(base_down)
+
+        self.showThresholds()
+      except:
+        self.dist_pg.clear()
+
+
   
   def tabChanged(self):
     lastActiveTab = self.activeTab
@@ -487,7 +579,6 @@ class tabdemo(QtGui.QTabWidget):
           self.thread.setRawAcquisition()
         except:
           print("No Serial connection")
-      
 
     elif(self.activeTab == self.spectTabIndex):
       print("tab spect")
@@ -502,11 +593,13 @@ class tabdemo(QtGui.QTabWidget):
           print("No Serial connection")
 
     elif(self.activeTab == self.gameTabIndex):
-      print("tab game")
+      print('Game Tab')
       try:
-        self.thread.setDecoderAcquisition()
+          self.thread.setDecoderAcquisition()
       except:
         print("No Serial connection")
+     
+
     elif(self.activeTab == self.accelTabIndex):
       print("tab tabAccel")
       self.channelAccelX = [0]*1000
@@ -518,22 +611,23 @@ class tabdemo(QtGui.QTabWidget):
           self.thread.setRawAcquisition()
         except:
           print("No Serial connection")
+
+
+    elif(self.activeTab == self.distTabIndex):
+      print("tab histogram")
+
     else:
       self.counter = 0
 
-      
-      
-    #print("New active tab: " + str(self.activeTab))
     
   def connectTabs(self):
     self.currentChanged.connect(self.tabChanged)
+    print('here')
     self.portedit.editingFinished.connect(self.port_change)
     self.baudedit.editingFinished.connect(self.baud_change)
     self.connectbutton.clicked.connect(self.start_serial)
     
-  def updateGraphs(self,channel,buffer, dataBuffer1, dataBuffer2):
-    # dataBuffer1 = self.dataBuffer1
-    # dataBuffer2 = self.dataBuffer2
+  def updateGraphs(self,channel, buffer, dataBuffer1, dataBuffer2, accelBufferX):
 
     if(self.activeTab == self.eegTabIndex): #raw Data
       if(channel == 1):
@@ -615,7 +709,6 @@ class tabdemo(QtGui.QTabWidget):
             self.img_array = np.roll(self.img_array, -1, 0)
             testArray = smooth(fftsamples)
             self.img_array[-1:] = testArray
-            #print(self.img_array)
             self.spectrogram.setImage(self.img_array, autoLevels=False)
           if(self.counter == self.FFT_WINDOW):
             self.counter = 0
@@ -626,39 +719,25 @@ class tabdemo(QtGui.QTabWidget):
           self.graphData.setData(self.channeldata)
     elif(self.activeTab == self.accelTabIndex): #accel
       if(channel == 7):
-        self.channelAccelX[self.counterAccel] = self.accelBufferX[0]
-        self.channelAccelY[self.counterAccel] = self.accelBufferX[1]
-        self.channelAccelZ[self.counterAccel] = self.accelBufferX[2]
-        #print(accelBufferX[2])
+        self.channelAccelX[self.counterAccel] = accelBufferX[0]
+        self.channelAccelY[self.counterAccel] = accelBufferX[1]
+        self.channelAccelZ[self.counterAccel] = accelBufferX[2]
         self.counterAccel += 1
         if(self.counterAccel == 1000):
           self.counterAccel = 0
-        self.accelDataX.setData(self.channelAccelX,pen=plotcolor)
-        self.accelDataY.setData(self.channelAccelY,pen=plotcolor)
-        self.accelDataZ.setData(self.channelAccelZ,pen=plotcolor)
-        
-        #for i in range(0,1):
-        #  sample =  accelBufferX[i]
-        #  print(sample)
-        #  self.channelAccelX[self.counterAccel] = sample
-        #  self.counterAccel += 1
-        #  if(self.counterAccel == 5000):
-        #    self.counterAccel = 0
-        #self.accelDataX.setData(self.channelAccelX,pen='y')
+        self.accelDataX.setData(self.channelAccelX,pen= self.plotcolor)
+        self.accelDataY.setData(self.channelAccelY,pen= self.plotcolor)
+        self.accelDataZ.setData(self.channelAccelZ,pen= self.plotcolor)
+
     else: # game
       channel = self.activeChannel
 
   def accelTabUI(self):
     layoutAccel = QtGui.QVBoxLayout()
-    
-    #configLayout = QtGui.QHBoxLayout()
-    #configLayout.addWidget(self.limitCheckbox)
-    #layout.addLayout(configLayout)
     layoutAccel.addWidget(self.graphAccel_x)
     layoutAccel.addWidget(self.graphAccel_y)
     layoutAccel.addWidget(self.graphAccel_z)
 
-    #self.setTabText(4,"Accel Data")
     self.tabAccel.setLayout(layoutAccel)
 
   def graphTabUI(self):
@@ -675,7 +754,6 @@ class tabdemo(QtGui.QTabWidget):
     layout.addWidget(self.graph4)
     layout.addWidget(self.graph5)
     
-    #self.setTabText(0,"EEG Data")
     self.tabEEG.setLayout(layout)
     self.limitSpinbox.valueChanged.connect(self.changeLimitValue)
 
@@ -716,17 +794,111 @@ class tabdemo(QtGui.QTabWidget):
     #self.setTabText(1,"Spectrogram")
     self.tabSpect.setLayout(layout)
 
+  def distTabUI(self):
+    layout = QtGui.QGridLayout()
+
+    self.pathData = '/Users/nunoloureiro/mindreach/software_eeg/mindreach_demo/data/'
+
+    self.userText = QtGui.QLabel()
+    self.userText.setText("Username:")
+    self.userEdit = QtGui.QLineEdit()
+    self.userEdit.setText(str(self.username))
+    self.StdMultiplierText = QtGui.QLabel()
+    self.StdMultiplierText.setText("Set std Multiplier:")
+    self.StdMultiplierBaseText = QtGui.QLabel()
+    self.StdMultiplierBaseText.setText("Set stdBase Multiplier:")
+
+    
+    self.fileText = QtGui.QLabel()
+    self.fileText.setText("Choose file to load:")
+
+    self.pathUser = self.pathData + 'subj_' + self.username + "/"
+
+    if os.path.isdir(self.pathUser):
+      self.all_pos_files = [f for f in os.listdir(self.pathUser) if f.startswith('positions')]
+      self.all_pos_files.sort(key=lambda f: int(re.sub('\D', '', f)))
+      for file in self.all_pos_files:
+        self.positionFileMenu.addItem(file)
+    else:
+      self.positionFileMenu.addItem("No files to show")
+
+    self.setNewThresholds = QtGui.QPushButton("Set thresholds as current")
+
+    layout.addWidget(self.userText,0,0,1,1)
+    layout.addWidget(self.userEdit,0,1,1,3)
+    layout.addWidget(self.positionFileMenu,1,0,1,4)
+    layout.addWidget(self.dist_pg,2,0,1,4)
+    layout.addWidget(self.StdMultiplierText,6,0,1,1)
+    layout.addWidget(self.stdMultiplierSpinbox,6,1,1,1)
+    layout.addWidget(self.StdMultiplierBaseText,7,0,1,1)
+    layout.addWidget(self.stdMultiplierBaseSpinbox,7,1,1,1)
+    layout.addWidget(self.setNewThresholds,6,3,1,1)
+    layout.addWidget(self.showThresholdsCheckbox,6,2,1,1)
+    self.stdMultiplierSpinbox.valueChanged.connect(self.changeStdMultiplier)
+    self.stdMultiplierBaseSpinbox.valueChanged.connect(self.changeStdBaseMultiplier)
+    
+
+    self.changedPositionFile()
+
+    self.tabDist.setLayout(layout)
+    self.userEdit.textEdited.connect(self.user_change)
+
+    self.positionFileMenu.currentIndexChanged.connect(self.changedPositionFile)
+    self.setNewThresholds.clicked.connect(self.setThresholdsInFile)
+
+  def launchGame(self):
+    try:
+      self.thread.terminate()
+      self.app_after_exit = 1
+      self.close()
+
+        
+    except:
+      #self.thread.setDecoderAcquisition()
+      print("No Serial connection")
+
+  def toggleAcqEegData(self, state):
+    if state == QtCore.Qt.Checked:
+      self.stateThresholds = 1
+      self.showThresholds()
+      
+    elif state != QtCore.Qt.Checked:
+      self.stateThresholds = 0
+      try:
+        self.dist_pg.removeItem(self.mean_vert_current)
+        self.dist_pg.removeItem(self.target_up_current)
+        self.dist_pg.removeItem(self.target_down_current)
+        self.dist_pg.removeItem(self.base_up_current)
+        self.dist_pg.removeItem(self.base_down_current)
+      except:
+        pass
+
+
   def gameTabUI(self):
-    layout = QtGui.QHBoxLayout()
-    #self.setTabText(2,"Game")
-    QtGui.closeAllWindows();
+    layout = QtGui.QVBoxLayout()
+
+    self.userText = QtGui.QLabel()
+    self.userText.setText("Username:")
+    self.userEditGame = QtGui.QLineEdit()
+    self.userEditGame.setText(str(self.username))
+
+    self.launchGameBtn = QtGui.QPushButton("Launch Game")
+
+    layout.addWidget(self.userText)
+    layout.addWidget(self.userEditGame)
+    layout.addWidget(self.launchGameBtn)
+
+    layout.addSpacing(800)
+
     self.tabGame.setLayout(layout)
+    self.userEditGame.textEdited.connect(self.user_change_game)
+    self.launchGameBtn.clicked.connect(self.launchGame)
 
     
   def connectTabUI(self):
     layout = QtGui.QVBoxLayout()
+
     
-    #self.setTabText(3,"Connect")
     self.baudtext = QtGui.QLabel()
     self.baudtext.setText("Baudrate")
     self.baudedit = QtGui.QLineEdit()
@@ -753,25 +925,70 @@ class tabdemo(QtGui.QTabWidget):
       serialEnabled = True
     
   def port_change(self):
-    #print("New port is " + self.portedit.text())
     self.serialPort = self.portedit.text()
   
   def baud_change(self):
     self.serialBaud = int(self.baudedit.text())
-  
+
+  def user_change(self):
+    self.username = self.userEdit.text()
+
+    self.positionFileMenu.clear()
+
+    self.pathUser = self.pathData + 'subj_' + self.username + "/"
+
+    if os.path.isdir(self.pathUser):
+      self.all_pos_files = [f for f in os.listdir(self.pathUser) if f.startswith('positions')]
+      self.all_pos_files.sort(key=lambda f: int(re.sub('\D', '', f)))
+      for file in self.all_pos_files:
+        self.positionFileMenu.addItem(file)
+    else:
+      self.positionFileMenu.addItem("No files to show")
+
+  def user_change_game(self):
+    self.usernameGame = self.userEditGame.text()
+
+  def setThresholdsInFile(self):
+
+    self.pathUser = self.pathData + 'subj_' + self.username + "/"
+    print(self.pathUser)
+    if self.realthresholds != {}:
+      g = open( self.pathUser +'thresholds.txt', 'r')
+      thresholds_old = eval(g.read())
+      # print(thresholds_old)
+      g.close()
+
+
+      f = open(self.pathUser + 'thresholds_old.txt', 'w')
+      f.write(str(thresholds_old))
+      f.close()
+      g = open( self.pathUser +'thresholds.txt', 'w')
+      g.write(str(self.realthresholds))
+      g.close()
+      self.showThresholds()
+    else:
+      print('Cannot write file because there are no thresholds')
+
   def start_serial(self):
     serial = serialReceiver(self.serialBaud, str(self.serialPort), self.serialEnabled, self.dataBuffer1,
-     self.dataBuffer2, self.writeVal, self.accelBufferX, self.accelBufferY, self.accelBufferZ)
+     self.dataBuffer2, self.writeVal, self.accelBufferX)
     serial.newSample.connect(self.updateGraphs)
     serial.serialConn.connect(self.onSerialConnect)
     self.thread = serial
     serial.start()
+
+  def keyPressEvent(self, event):
+    # Did the user press the Escape key?
+    if event.key() == QtCore.Qt.Key_Escape: # QtCore.Qt.Key_Escape is a value that equates to what the operating system passes to python from the keyboard when the escape key is pressed.
+      # Yes: Close the window
+      self.app_after_exit = 0
+      self.close()
     
 def main():
   app = QtGui.QApplication(sys.argv)
   ex = tabdemo()
   ex.show()
   sys.exit(app.exec_())
-  
+
 if __name__ == '__main__':
   main()

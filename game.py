@@ -19,9 +19,9 @@ import scipy.io
 import re
 import os
 
+from EEGsignals import *
 
-
-
+import faulthandler; faulthandler.enable()
 
 ###########################################################################
 ########################### get new decoder data ##########################
@@ -42,14 +42,14 @@ def get_data(ser,s2):
                 return(log[0])
             elif(channel > 0) and (channel < 6):
                 data = ser.read(500)
-                if(writeVal == 1):
-                    dataBuffer1 = s.unpack(data)
-                    writeVal = 2
-                else:
-                    dataBuffer2 = s.unpack(data)
-                    writeVal = 1
-                #unpacked_data = s.unpack(data)
-                chanCounter = channel
+                # if(writeVal == 1):
+                #     dataBuffer1 = s.unpack(data)
+                #     writeVal = 2
+                # else:
+                #     dataBuffer2 = s.unpack(data)
+                #     writeVal = 1
+                # #unpacked_data = s.unpack(data)
+                # chanCounter = channel
                 #newSample.emit(channel,writeVal)
         else:
             ser.flush()
@@ -83,7 +83,13 @@ def normalize_all_thresholds(thrsh_real):
 
 
 
-def main_game():
+def main_game(username):
+
+
+
+    print(username)
+
+
     pygame.init()
 
     list_of_pos_real = []
@@ -94,32 +100,40 @@ def main_game():
 
     ##################################################################################
     ############################# configure BLUETOOTH  ###############################
-    # ser = serial.Serial()
+    ser = serial.Serial()
 
-    # ser.baudrate = 115200
-    # ser.port = str('/dev/tty.mindreachBTv4-Bluetooth')
-    # ser.rtscts = 1
+    ser.baudrate = 115200
+    ser.port = str('/dev/tty.mindreachBTv4-Bluetooth')
+    ser.rtscts = 1
 
-    # ser.open()
+    ser.open()
      
-    # print("Ready to receive packets!\r\n")
+    print("Ready to receive packets!\r\n")
 
-    # s = struct.Struct('f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f')
-    # s2 = struct.Struct('f')
+    s = struct.Struct('f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f')
+    s2 = struct.Struct('f')
 
-    # dataSend = bytes([0x77, 0x61])
-    # ser.write(dataSend)
+    dataSend = bytes([0x77, 0x61])
+    ser.write(dataSend)
     #################################################################################
     #################################################################################
 
     #################################################################################
     ############################## GET THRESHOLDS ###################################
-    subj = "_nuno"
-    pathData = '/Users/nunoloureiro/mindreach/software_eeg/mindreach_demo/data/'
-    pathUser = pathData+'subj' + subj+"/"
-    g = open( pathUser +'thresholds.txt', 'r')
-    thresholds_real = eval(g.read())
-    thresholds_norm, scaling_factor = normalize_all_thresholds(thresholds_real)
+    subj = username
+
+    
+    try:
+        pathData = '/Users/nunoloureiro/mindreach/software_eeg/mindreach_demo/data/'
+        pathUser = pathData+'subj_' + subj+ "/"
+        g = open( pathUser +'thresholds.txt', 'r')
+        thresholds_real = eval(g.read())
+        thresholds_norm, scaling_factor = normalize_all_thresholds(thresholds_real)
+    except:
+        print("USER  ->  " + str(username) + " <- does not exist")
+        mainloop = False  
+        return 0
+
     ##################################################################################
     ##################################################################################
 
@@ -141,6 +155,8 @@ def main_game():
     map_flag = 1
     hdg_flag = 1
 
+    tilt = 0
+
     games = pygame.sprite.Group(ball_obj, hdg_obj, map_obj)
     timer = pygame.time.get_ticks()
 
@@ -150,9 +166,9 @@ def main_game():
 
         clock = pygame.time.Clock()
 
-        new_pos_real = np.random.rand()*2 - 1
-        #new_pos_real = float(get_data(ser,s2))#np.random.rand()*2 - 1
-        new_pos_norm = 1 - (new_pos_real - thresholds_real['downRange'])*scaling_factor
+        #new_pos_real = np.random.rand()*2 - 1
+        new_pos_real = float(get_data(ser,s2))
+        new_pos_norm = -1 + (new_pos_real - thresholds_real['downRange'])*scaling_factor
 
         list_of_pos_real.append(new_pos_real)
 
@@ -165,6 +181,7 @@ def main_game():
         
         if map_flag:
             map_obj.angle_speed = new_pos_norm*20
+            #print(map_obj.angle_speed)
 
         games.update()        
         games.draw(screen)
@@ -195,19 +212,23 @@ def main_game():
                 elif event.key == pygame.K_s:
                     map_obj.speed -= 1
                 elif event.key == pygame.K_a:
-                    map_obj.angle_speed = -20
+                    map_obj.angle_speed = -10
                     tilt = -27
                     hdg_obj.rot_center(tilt)
                 elif event.key == pygame.K_d:
-                    map_obj.angle_speed = 20
+                    map_obj.angle_speed = 10
                     tilt = 27
                     hdg_obj.rot_center(tilt)
                 elif event.key == pygame.K_UP:
                     tilt += 2.5
-                    hdg_obj.rot_center(tilt)
+                    map_obj.BMI_help += 0.05
+                    if map_obj.BMI_help > 1:
+                        map_obj.BMI_help =1
                 elif event.key == pygame.K_DOWN:
-                    tilt -= 2.5
-                    hdg_obj.rot_center(tilt)
+                    #tilt -= 2.5
+                    map_obj.BMI_help -= 0.05
+                    if map_obj.BMI_help < 0:
+                        map_obj.BMI_help =0
                 elif event.key == pygame.K_SPACE:
                     map_obj.create_drone()
                 elif event.key == pygame.K_p:
@@ -236,6 +257,16 @@ def main_game():
                     map_obj = MapTile((0, 0), (screen_size_x, screen_size_y*0.6))
                     hdg_obj = HdgTile((screen_size_x*0.65, screen_size_y*0.6), (screen_size_x*0.35, screen_size_y*0.4))
                     games = pygame.sprite.Group(ball_obj, hdg_obj, map_obj)
+                elif event.key == pygame.K_m:
+                    pygame.quit()
+                    all_files = [f for f in os.listdir(pathUser) if f.startswith('positions')]
+                    all_files.sort(key=lambda f: int(re.sub('\D', '', f)))
+                    last_file = all_files[-1]
+                    idx_last = last_file.split('_')[1].split('.')[0]
+                    with open(pathUser + "positions_" + str(int(idx_last)+1)+ ".txt", "wb") as filehandle:
+                        # store the data as binary data stream
+                        pickle.dump(list_of_pos_real, filehandle)
+                    return 2
                 elif event.key == pygame.K_ESCAPE:
                     print('button click ESC!!!!')
                     pygame.quit()
@@ -246,7 +277,8 @@ def main_game():
                     with open(pathUser + "positions_" + str(int(idx_last)+1)+ ".txt", "wb") as filehandle:
                         # store the data as binary data stream
                         pickle.dump(list_of_pos_real, filehandle)
-                    mainloop = False     
+                    mainloop = False  
+                    return 0   
             elif event.type == pygame.KEYUP:
                 if event.key == pygame.K_a:
                     map_obj.angle_speed = 0
@@ -265,75 +297,35 @@ def main_game():
                 map_obj = MapTile((0, 0), (screen_size_x, screen_size_y*0.6))
                 hdg_obj = HdgTile((screen_size_x*0.65, screen_size_y*0.6), (screen_size_x*0.35, screen_size_y*0.4))
                 games = pygame.sprite.Group(ball_obj, hdg_obj, map_obj)
-                
-
-def main_signals():
-
-    subj = "_nuno"
-    pathData = '/Users/nunoloureiro/mindreach/software_eeg/mindreach_demo/data/'
-    pathUser = pathData+'subj' + subj+"/"
-
-    all_files = [f for f in os.listdir(pathUser) if f.startswith('positions')]
-
-    print(all_files)
-    all_files.sort(key=lambda f: int(re.sub(' \D', '', f)))
-    last_file = all_files[-1]
-    idx_last = last_file.split('_')[1].split('.')[0]
-
-    with open(pathUser + "positions_" + idx_last + ".txt", 'rb') as filehandle:
-        # read the data as binary data stream
-        position_array = pickle.load(filehandle)
-
-    pygame.init()
-    fig = pylab.figure(figsize=[6, 4], # Inches
-                       dpi=100)        # 100 dots per inch, so the resulting buffer is 400x400 pixels)
-    ax = fig.gca()
-
-    ax.hist(position_array,int(len(position_array)/10))
-
-    mean_pos = np.mean(position_array)
-    std_pos = np.std(position_array)
-    ax.axvline(x=mean_pos+2.5*std_pos, linewidth=2, color='r')
-    ax.axvline(x=mean_pos-2.5*std_pos, linewidth=2, color='r')
-    ax.axvline(x=mean_pos, linewidth=2, color='r', linestyle = '--')
-
-    canvas = agg.FigureCanvasAgg(fig)
-    canvas.draw()
-    renderer = canvas.get_renderer()
-    raw_data = renderer.tostring_rgb()
-
-    window = pygame.display.set_mode((600, 400), DOUBLEBUF)
-    screen = pygame.display.get_surface()
-
-    size = canvas.get_width_height()
-
-    surf = pygame.image.fromstring(raw_data, size, "RGB")
-    screen.blit(surf, (0,0))
-    pygame.display.flip()
-
-    mainloop = True
-    while mainloop:
-        for event in pygame.event.get():
-            if event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_ESCAPE:
-                    print('button click ESC!!!!')
-                    pygame.quit()
-                    mainloop = False
-
 
 def main():
     mainloop = True
-    game = 1
+    app_n = 2
+    first = 1
+    username = "nuno"
     while mainloop:   
-        if game:
-            main_game()
-            #exec(open('EEGsignals.py').read())
+        if app_n == 1:
+            ret = main_game(username)
             #mainloop = False
-            game = 0
+            app_n = ret
+        elif app_n == 2:
+            if first:
+                app = QtGui.QApplication(sys.argv)
+                ex = tabdemo()
+                ex.show()
+                app.exec_()
+                app_n = ex.app_after_exit
+                username = ex.usernameGame
+                first = 0
+            else:
+                ex.show()
+                app.exec_()
+                app_n = ex.app_after_exit
+                username = ex.usernameGame
+            #sys.exit(app.exec_())
+            #app_n = 3
         else:
-            main_signals()
-            game = 1
-            mainloop = False
+             mainloop = False   
 
 if __name__ == '__main__':
     main()

@@ -9,6 +9,9 @@ class HdgTile(pygame.sprite.Sprite):
         pos_in_screen_y = pos_in_screen[1]
         tile_size_x = tile_size[0]
         tile_size_y = tile_size[1]
+        self.tile_size_x = tile_size[0]
+        self.tile_size_y = tile_size[1]
+
 
 
         self.image = pygame.Surface((tile_size_x, tile_size_y))
@@ -24,7 +27,7 @@ class HdgTile(pygame.sprite.Sprite):
        
         HDG_size = self.rect_hdg_rot.size
 
-        self.BG_IMAGE = pygame.image.load("images/hdg_bg.png").convert_alpha()
+        self.BG_IMAGE = pygame.image.load("images/hdg_bg2.png").convert_alpha()
         BG_size = self.BG_IMAGE.get_rect().size
 
         self.BG_IMAGE = self.BG_IMAGE.subsurface((abs(HDG_size[0]/2-BG_size[0]/2),abs(HDG_size[1]/2-BG_size[1]/2),HDG_size[0],HDG_size[1]))
@@ -54,4 +57,9 @@ class HdgTile(pygame.sprite.Sprite):
         self.rect_hdg_rot = self.rotated_image.get_rect()
         self.rect_hdg_rot.center = old_center
         self.image.blit(self.rotated_image, self.rect_hdg_rot)
-
+        pygame.draw.polygon(self.image, (255,0,0), [[self.tile_size_x*0.48, self.tile_size_y*0.13], 
+                                                [self.tile_size_x*0.52, self.tile_size_y*0.13],
+                                                [self.tile_size_x*0.5, self.tile_size_y*0.16]], 0)
+        pygame.draw.polygon(self.image, (255,0,0), [[self.tile_size_x*0.48, self.tile_size_y*0.23], 
+                                                [self.tile_size_x*0.52, self.tile_size_y*0.23],
+                                                [self.tile_size_x*0.5, self.tile_size_y*0.2]], 0)

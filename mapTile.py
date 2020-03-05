@@ -4,7 +4,9 @@ import math
 class MapTile(pygame.sprite.Sprite):
     def __init__(self, pos_in_screen, tile_size):
         super().__init__()
-        
+        pygame.font.init() # you have to call this at the start, 
+                   # if you want to use this module.
+        self.myfont = pygame.font.SysFont('Impact', 30)        
 
         pos_in_screen_x = pos_in_screen[0]
         pos_in_screen_y = pos_in_screen[1]
@@ -25,12 +27,13 @@ class MapTile(pygame.sprite.Sprite):
         self.drone_flag = 0
         
         self.position = pygame.Vector2(self.tile_size_x/2, self.tile_size_y/2)
-        self.direction = pygame.Vector2(1,0)
+        self.direction = pygame.Vector2(0,0)
         self.speed = 0#math.sqrt(math.pow(self.tile_size_x,2) + math.pow(self.tile_size_y,2))/30
-        self.angle = 0
+        self.angle = (180/math.pi) * math.atan2(self.direction.x, self.direction.y)
+
         self.angle_speed = 0
 
-        self.BMI_help = 1
+        self.BMI_help = 0
 
         self.next_target = pygame.Vector2(0,0)
         self.next_target_direction = pygame.Vector2(0,0)
@@ -87,14 +90,20 @@ class MapTile(pygame.sprite.Sprite):
                                             self.waypoint_list[1][1]-self.waypoint_list[0][1]).normalize()
         else:
             self.position = pygame.Vector2(self.tile_size_x/2, self.tile_size_y/2)
-            self.direction = pygame.Vector2(1,0)
+            self.direction = pygame.Vector2(0,1)
 
         self.initial_vec = self.position
         self.image.blit(self.drone, self.rect_drone)
         self.drone_flag = 1
         self.speed = 4#math.sqrt(math.pow(self.tile_size_x,2) + math.pow(self.tile_size_y,2))/30
-        self.angle = 0
+        self.angle = (180/math.pi) * math.atan2(self.direction.x, self.direction.y)
+
+        self.drone = pygame.transform.rotate(self.drone_orig, self.angle)
+
+        print('angle1',self.angle)
         self.angle_speed = 0
+
+
 
     def set_next_target(self):
         print('here set target')
@@ -114,18 +123,24 @@ class MapTile(pygame.sprite.Sprite):
         self.blit_map()
         self.blit_waypoints()
 
+        textsurface = self.myfont.render('BMI help: ' + "{:.2f}".format(self.BMI_help), False, (255, 0, 0))
+
+        self.image.blit(textsurface, (self.tile_size_x/30, self.tile_size_y*.9))
+
         if self.drone_flag:
             if self.angle_speed != 0:
                 # Rotate the direction vector and then the image.
-                self.direction.rotate_ip(self.angle_speed)
-                if self.BMI_help:
+                self.direction.rotate_ip(-self.angle_speed)
+                if self.BMI_help>0.05:
                     self.next_target_direction.x = self.next_target.x - self.position.x
                     self.next_target_direction.y = self.next_target.y - self.position.y
                     if self.next_target_direction != (0,0):
                         self.next_target_direction = self.next_target_direction.normalize()
                         angle_BMI =   (180/math.pi) * math.atan2(self.next_target_direction.x, self.next_target_direction.y)
                     self.direction = self.direction *(1-self.BMI_help) + self.BMI_help*self.next_target_direction
-                    self.angle = self.angle_speed*(1-self.BMI_help) + self.BMI_help*angle_BMI
+                    self.angle = (self.angle+self.angle_speed)*(1-self.BMI_help) + self.BMI_help*angle_BMI
+                else:
+                    self.angle += self.angle_speed
                 self.drone = pygame.transform.rotate(self.drone_orig, self.angle)
                 self.rect_drone = self.drone.get_rect()
             # Update the position vector and the rect.
