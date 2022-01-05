@@ -126,7 +126,7 @@ class serialReceiver(QtCore.QThread):
 
     
   def setDecoderAcquisition(self):
-    self.loopRun = 1
+    self.loopRun = 10
     self.ser.write(str.encode("wa"))
 
 
@@ -183,7 +183,7 @@ class tabdemo(QtGui.QTabWidget):
     self.spectCounter = 0
     
     self.serialBaud = 115200
-    self.serialPort = str('/dev/tty.mindreachBTv4-Bluetooth')
+    self.serialPort = str('/dev/tty.mindreachBTv4_2-Bluetoo')
 
     self.username = "nuno"
     self.usernameGame = "nuno"

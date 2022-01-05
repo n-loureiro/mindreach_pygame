@@ -1,5 +1,7 @@
 import pygame 
 import math
+import os
+import numpy as np
 
 class MapTile(pygame.sprite.Sprite):
     def __init__(self, pos_in_screen, tile_size):
@@ -15,8 +17,10 @@ class MapTile(pygame.sprite.Sprite):
 
         self.image = pygame.Surface((self.tile_size_x, self.tile_size_y))
         self.background_image = pygame.image.load("images/champ.png").convert()
+        # self.background_image = self.background_image.subsurface((0, 0, int(self.tile_size_x), int(self.tile_size_y)))
+
         self.background_image = pygame.transform.scale(self.background_image, 
-                                                (int(self.tile_size_x), int(self.tile_size_y)))
+                                                 (int(self.tile_size_x), int(self.tile_size_y)))
         self.blit_map()
         self.rect = self.image.get_rect()
         self.rect.center = ((pos_in_screen_x)+self.tile_size_x/2, 
@@ -33,10 +37,23 @@ class MapTile(pygame.sprite.Sprite):
 
         self.angle_speed = 0
 
+        self.angle_speed_intensity = 20
+
+
         self.BMI_help = 0
 
         self.next_target = pygame.Vector2(0,0)
         self.next_target_direction = pygame.Vector2(0,0)
+
+        self.seagull_sound = pygame.mixer.Sound("sounds/seagull.wav")
+        self.correct_sound = pygame.mixer.Sound("sounds/correct_sound.wav")
+        self.explosion_sound = pygame.mixer.Sound("sounds/explosion.wav")
+        
+
+        self.flag_explosion = 0
+        self.seagull_flag = 0
+        self.explosion_flag = 0
+        self.explosion_time = pygame.time.get_ticks()
 
     def set_new_waypoint(self, pos):
         self.blit_map()
@@ -55,6 +72,7 @@ class MapTile(pygame.sprite.Sprite):
         for wp in self.waypoint_list:
             if wp == self.next_target:
                 pygame.draw.circle(self.image, (30,250,10), wp, 10)
+                pygame.draw.circle(self.image, (30,250,10), wp, 20, 5)
             else:
                 pygame.draw.circle(self.image, (250,10,0), wp, 5)
 
@@ -93,16 +111,43 @@ class MapTile(pygame.sprite.Sprite):
             self.direction = pygame.Vector2(0,1)
 
         self.initial_vec = self.position
-        self.image.blit(self.drone, self.rect_drone)
+        
         self.drone_flag = 1
         self.speed = 4#math.sqrt(math.pow(self.tile_size_x,2) + math.pow(self.tile_size_y,2))/30
         self.angle = (180/math.pi) * math.atan2(self.direction.x, self.direction.y)
 
         self.drone = pygame.transform.rotate(self.drone_orig, self.angle)
-
-        print('angle1',self.angle)
+        self.image.blit(self.drone, self.rect_drone)
         self.angle_speed = 0
 
+    def create_seagull(self):
+        self.seagull_sound.play()
+        self.seagull = pygame.image.load("images/seagull.png").convert_alpha()
+        self.seagull = pygame.transform.scale(self.seagull, (120, 64))
+        
+        if np.random.random() > 0.5:
+            self.position_seagull = pygame.Vector2(-10, np.random.random()*self.tile_size_y/2+self.tile_size_y/4)
+            self.direction_seagull = pygame.Vector2(1,np.random.random()*0.4)
+        else:
+            self.position_seagull = pygame.Vector2(self.tile_size_x+10, np.random.random()*self.tile_size_y/2+self.tile_size_y/4)
+            self.direction_seagull = pygame.Vector2(-1,np.random.random()*.8)
+            self.seagull = pygame.transform.flip(self.seagull,1,0)
+        
+        self.rect_seagull = self.seagull.get_rect()
+        self.speed_seagull = 10
+        #self.angle_seagull = (180/math.pi) * math.atan2(self.direction_seagull.x, self.direction_seagull.y)
+        #self.seagull = pygame.transform.rotate(self.seagull, self.angle_seagull)
+        self.image.blit(self.seagull, self.rect_seagull)
+        self.seagull_flag = 1
+
+    def create_explosion(self):
+        self.explosion_sound.play()
+        self.explosion = pygame.image.load("images/explosion.png").convert_alpha()
+        self.explosion = pygame.transform.scale(self.explosion, (400, 400))
+        self.rect_explosion = self.rect_seagull.move(-200,-200)
+        self.image.blit(self.explosion, self.rect_explosion)
+
+        self.flag_explosion = 1
 
 
     def set_next_target(self):
@@ -124,8 +169,11 @@ class MapTile(pygame.sprite.Sprite):
         self.blit_waypoints()
 
         textsurface = self.myfont.render('BMI help: ' + "{:.2f}".format(self.BMI_help), False, (255, 0, 0))
-
-        self.image.blit(textsurface, (self.tile_size_x/30, self.tile_size_y*.9))
+        self.image.blit(textsurface, (self.tile_size_x*0.05, self.tile_size_y*.9))
+        textsurface = self.myfont.render('turn rate: ' + "{:.2f}".format(self.angle_speed_intensity), False, (255, 0, 0))
+        self.image.blit(textsurface, (self.tile_size_x*0.45, self.tile_size_y*.9))
+        textsurface = self.myfont.render('speed: ' + "{:.2f}".format(self.speed), False, (255, 0, 0))
+        self.image.blit(textsurface, (self.tile_size_x*0.8, self.tile_size_y*.9))
 
         if self.drone_flag:
             if self.angle_speed != 0:
@@ -153,5 +201,32 @@ class MapTile(pygame.sprite.Sprite):
 
                 distance = self.position - self.next_target
                 
-                if distance.magnitude() <= self.tile_size_x/200:
+                if distance.magnitude() <= 40:
+                    self.correct_sound.play()
                     self.set_next_target()
+
+        # if self.seagull_flag:
+        #     self.image.blit(self.seagull, self.rect_seagull)
+        #     self.position_seagull += self.direction_seagull * self.speed_seagull
+        #     self.rect_seagull.center = self.position_seagull
+            
+        #     if (self.position_seagull.x > self.tile_size_x +20) or (self.position_seagull.x < -20) or \
+        #             (self.position_seagull.y > self.tile_size_y + 20) or (self.position_seagull.y < -20):
+        #         self.seagull_flag = 0
+
+
+        #     if self.drone_flag:
+        #         distance = self.position - self.position_seagull
+                
+        #         if distance.magnitude() <= 50:
+        #             print('distance')
+        #             self.create_explosion()
+        #             self.drone_flag = 0
+        #             self.seagull_flag = 0
+        #             self.explosion_time = pygame.time.get_ticks()
+        # else:
+        #     self.create_seagull()
+
+        # if self.explosion_flag:
+        #     if pygame.time.get_ticks() - self.explosion_time > 500:
+        #         self.explosion_time = 0

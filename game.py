@@ -19,7 +19,7 @@ import scipy.io
 import re
 import os
 
-from EEGsignals import *
+from EEGsignals_new import *
 
 import faulthandler; faulthandler.enable()
 
@@ -27,44 +27,69 @@ import faulthandler; faulthandler.enable()
 ########################### get new decoder data ##########################
 ###########################################################################
 def get_data(ser,s2):
-    global writeVal
     data = ser.read(1)
     log = 1
-    #if(data == 255):
     if(ord(data) == 255):
         data = ser.read(3)
+        #if(data[0] == 255 and data[1] == 0):
         if(data[0] == 255 and data[1] == 0):
             #channel = data[2]
             channel = data[2]
             if(channel == 6):
+                #self.loopRun = 0
+                print("")
                 data = ser.read(4)
                 log = s2.unpack(data)
                 return(log[0])
-            elif(channel > 0) and (channel < 6):
-                data = ser.read(500)
-                # if(writeVal == 1):
-                #     dataBuffer1 = s.unpack(data)
-                #     writeVal = 2
-                # else:
-                #     dataBuffer2 = s.unpack(data)
-                #     writeVal = 1
-                # #unpacked_data = s.unpack(data)
-                # chanCounter = channel
-                #newSample.emit(channel,writeVal)
-        else:
-            ser.flush()
-            return(log)
-    elif(data[0] == 5):
-        #elif(data[0] == 5):
-        #if not serialEnabled : 
-        #    serialConn.emit(serialEnabled)
-        enabled = 1
-        print("Raw signals enabled!")
-        return(log)
     else:
-        return(log)
         ser.flush()
-    return(log)
+        return(log)    
+
+
+
+
+
+# def get_data(ser,s2):
+#     global writeVal
+#     data = ser.read(1)
+#     log = 1
+#     #if(data == 255):
+#     if(ord(data) == 255):
+#         data = ser.read(3)
+#         if(data[0] == 255 and data[1] == 0):
+#             #channel = data[2]
+#             channel = data[2]
+#             if(channel == 6):
+#                 data = ser.read(4)
+#                 log = s2.unpack(data)
+                
+
+#                 return(log[0])
+#             elif(channel > 0) and (channel < 6):
+#                 data = ser.read(500)
+#                 # if(writeVal == 1):
+#                 #     dataBuffer1 = s.unpack(data)
+#                 #     writeVal = 2
+#                 # else:
+#                 #     dataBuffer2 = s.unpack(data)
+#                 #     writeVal = 1
+#                 # #unpacked_data = s.unpack(data)
+#                 # chanCounter = channel
+#                 #newSample.emit(channel,writeVal)
+#         else:
+#             ser.flush()
+#             return(log)
+#     elif(data[0] == 5):
+#         #elif(data[0] == 5):
+#         #if not serialEnabled : 
+#         #    serialConn.emit(serialEnabled)
+#         enabled = 1
+#         print("Raw signals enabled!")
+#         return(log)
+#     else:
+#         return(log)
+#         ser.flush()
+#     return(log)
 ###########################################################################                  
 ###########################################################################
 
@@ -103,7 +128,7 @@ def main_game(username):
     ser = serial.Serial()
 
     ser.baudrate = 115200
-    ser.port = str('/dev/tty.mindreachBTv4-Bluetooth')
+    ser.port = str('/dev/tty.mindreachBTv4_2-Bluetoo')
     ser.rtscts = 1
 
     ser.open()
@@ -113,8 +138,9 @@ def main_game(username):
     s = struct.Struct('f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f')
     s2 = struct.Struct('f')
 
-    dataSend = bytes([0x77, 0x61])
-    ser.write(dataSend)
+    # dataSend = bytes([0x77, 0x61])
+    # ser.write(dataSend)
+    ser.write(serialReceiver.formatCmd(0xAC,[0x01]))
     #################################################################################
     #################################################################################
 
@@ -160,6 +186,7 @@ def main_game(username):
     games = pygame.sprite.Group(ball_obj, hdg_obj, map_obj)
     timer = pygame.time.get_ticks()
 
+
     while mainloop:
 
         screen.fill((0,0,0))
@@ -177,12 +204,11 @@ def main_game(username):
             ball_obj.drawThresholdLines()
         
         if hdg_flag:
-            hdg_obj.rot_center(new_pos_norm*27)
+            hdg_obj.rot_center(new_pos_norm*20)
         
         if map_flag:
-            map_obj.angle_speed = new_pos_norm*20
+            map_obj.angle_speed = new_pos_norm*map_obj.angle_speed_intensity
             #print(map_obj.angle_speed)
-
         games.update()        
         games.draw(screen)
         pygame.display.flip()
@@ -203,20 +229,23 @@ def main_game(username):
                 elif now - last_click <= double_click_duration:
                     map_obj.clear_waypoints()
                 else:
-                    print(event.pos)
                     map_obj.set_new_waypoint(event.pos)
                 last_click = pygame.time.get_ticks()
             elif event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_w:
                     map_obj.speed += 1
+                    print(map_obj.speed)
                 elif event.key == pygame.K_s:
                     map_obj.speed -= 1
+                    print(map_obj.speed)
                 elif event.key == pygame.K_a:
-                    map_obj.angle_speed = -10
+                    map_obj.angle_speed_intensity -= 2
+                    print(angle_speed_intensity)
                     tilt = -27
                     hdg_obj.rot_center(tilt)
                 elif event.key == pygame.K_d:
-                    map_obj.angle_speed = 10
+                    map_obj.angle_speed_intensity += 2
+                    print(angle_speed_intensity)
                     tilt = 27
                     hdg_obj.rot_center(tilt)
                 elif event.key == pygame.K_UP:
@@ -290,7 +319,7 @@ def main_game(username):
                     hdg_obj.rot_center(tilt) 
                 
             elif event.type==VIDEORESIZE:
-                print('here')
+                print('here VIDEORESIZE')
                 screen=pygame.display.set_mode(event.dict['size'],HWSURFACE|DOUBLEBUF|RESIZABLE)
                 screen_size_x, screen_size_y = screen.get_size()
                 ball_obj = BallTile((0, screen_size_y*0.6), (screen_size_x*0.65, screen_size_y*0.4),thresholds_norm)
@@ -325,7 +354,7 @@ def main():
             #sys.exit(app.exec_())
             #app_n = 3
         else:
-             mainloop = False   
+            mainloop = False   
 
 if __name__ == '__main__':
     main()
